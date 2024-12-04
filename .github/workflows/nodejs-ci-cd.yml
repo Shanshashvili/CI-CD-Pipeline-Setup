@@ -1,0 +1,55 @@
+name: Node.js CI/CD Pipeline
+
+on:
+  push:
+    branches:
+      - main
+  
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '16'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Run tests
+        run: npm test
+
+      - name: Build application
+        run: npm run build
+
+  deploy:
+    runs-on: ubuntu-latest
+    needs: build
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v3
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v3
+        with:
+          node-version: '16'
+
+      - name: Install dependencies
+        run: npm install
+
+      - name: Deploy to staging
+        env:
+          HOST: ${{ secrets.STAGING_HOST }}
+          USERNAME: ${{ secrets.STAGING_USER }}
+          PRIVATE_KEY: ${{ secrets.STAGING_PRIVATE_KEY }}
+        run: |
+          echo "${PRIVATE_KEY}" > private_key.pem
+          chmod 600 private_key.pem
+          scp -i private_key.pem -r ./build $USERNAME@$HOST:/var/www/app
+          ssh -i private_key.pem $USERNAME@$HOST "sudo systemctl restart app"
